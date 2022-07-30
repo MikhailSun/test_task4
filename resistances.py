@@ -26,13 +26,13 @@ def dH_valve2(V,D,Nu,g,valve_status):
 #из Миллера "internal flow systems"
 # x - степень открытия клапана 0 - закрыт, 1 - открыт,  V - скорость потока, g = 9.81
 def dH_valve3(x,V,g):
-    if x<0.01:
-        dzita_=1000000
-    else:
-        open_status=[0,1/9,2/9,3/9,4/9,5/9,6/9,7/9,8/9,1]
-        dzita_array=[10000,500,100,40,10,7.5,3,1.1,0.5,0.01]
-        dzita = interp1d(open_status, dzita_array, bounds_error=False, fill_value="extrapolate", kind='quadratic')
-        dzita_=dzita(x)
+    # if x<0.01:
+    #     dzita_=1000000
+    # else:
+    open_status=[0,1/9,2/9,3/9,4/9,5/9,6/9,7/9,8/9,1]
+    dzita_array=[1000,500,100,40,10,7.5,3,1.1,0.5,0.01]
+    dzita = interp1d(open_status, dzita_array, bounds_error=False, fill_value="extrapolate", kind='quadratic')
+    dzita_=dzita(x)
     return  dzita_* V ** 2 / 2 / g
 
 #потери в регулируемом клапане, заданном как поток через отверстие (Идельчик)

@@ -38,15 +38,17 @@ def S_valve(t):
     return np.pi*(d/2)**2*t
 
 #функция расчета управляющего сигнала ПИ-регулятора
-def PI_controller(error, prev_error, KP, KI):
-    # return prev_error + KP*(error - prev_error) + KI*error
-    return KP*error+KI*(sum(prev_error)+error)
+def PI_controller(error, sum_of_prev_error, KP, KI, dt):
+    # return sum_of_prev_error + KP*(error - sum_of_prev_error) + KI*error
+    proportional=KP*error
+    integral=KI*(sum_of_prev_error+error*dt)
+    return proportional+integral
 
 #первоначальные приближения
 t_in=10 #температура на входе в систему
 t_out=10. #на выходе
 valve_position=0.0001
-prev_error=[]
+sum_of_prev_error=0.
 prev_x=0.99
 
 #Массивы для записи результатов:
@@ -83,7 +85,8 @@ for i in range(1,int(T/dt)):
             t_in = temperature_
 
     #находим давление на выходе из системы
-    res=root_scalar(iteration,x0=prev_x,x1=prev_x*1.0001,method='secant',args=(valve_position))
+    # res=root_scalar(iteration,x0=prev_x,x1=prev_x*1.0001,method='secant',args=(valve_position))
+    res = root_scalar(iteration, bracket=[0.001,0.999999], method='bisect', args=(valve_position))
     x=res.root
     prev_x=x
     #расходы потоков через основной контур и обходную трубу
@@ -99,10 +102,10 @@ for i in range(1,int(T/dt)):
     #ошибка регулирования:
     error=t_out-t_out_target
     #считаем через ПИ-регулятор управляющий сигнал
-    signal=PI_controller(error,prev_error,KP,KI)
-    prev_error.append(error)
-    if len(prev_error)>10:
-        del prev_error[0]
+    signal=PI_controller(error, sum_of_prev_error, KP, KI, dt)
+    sum_of_prev_error+=error
+    # if len(sum_of_prev_error)>10:
+    #     del sum_of_prev_error[0]
     #полученный сигнал пересчитываем в вид от 0 до 1 для управления клапаном
     if signal>1:
         valve_position=1
@@ -116,10 +119,20 @@ for i in range(1,int(T/dt)):
     res_G2.append(G2)
     res_signal.append(signal)
     res_valve_position.append(valve_position)
-
-fig1=mc.Chart(points_for_plot=[{'x':time,'y':res_t_out,'label':'t_out','c':'red'},],xlabel='time, s',ylabel='t_out, C', title='Temperature', dpi=150,figure_size=(5,5))
+t_out_target
+fig1=mc.Chart(points_for_plot=[{'x':time,'y':res_t_out,'label':'t_out','c':'red'},{'x':time,'y':[t_out_target]*len(time),'label':'t_target','c':'black'}],xlabel='time, s',ylabel='t_out, C', title='Temperature', dpi=150,figure_size=(5,5))
 fig2=mc.Chart(points_for_plot=[{'x':time,'y':res_G1,'label':'res_G1','c':'red'},{'x':time,'y':res_G2,'label':'res_G2','c':'blue'}],xlabel='time, s',ylabel='G, kg/s', title='Massflow', dpi=150,figure_size=(5,5))
 fig3=mc.Chart(points_for_plot=[{'x':time,'y':res_signal,'label':'signal','c':'red'},{'x':time,'y':res_valve_position,'label':'valve_position','c':'blue'}],xlabel='time, s',ylabel='signal, valve_pos', title='PI controller', dpi=150,figure_size=(5,5))
+
+#проверим характеристику регулируемого клапана
+v_array=[0.1,1,5]
+x_array=np.linspace(0,1,50)
+dH1_array=[dH_valve(x,v_array[0],g) for x in x_array]
+dH2_array=[dH_valve(x,v_array[1],g) for x in x_array]
+dH3_array=[dH_valve(x,v_array[2],g) for x in x_array]
+fig4=mc.Chart(points_for_plot=[{'x':x_array,'y':dH1_array,'label':'v=0.1','c':'red'},
+                               {'x':x_array,'y':dH2_array,'label':'v=1','c':'blue'},
+                               {'x':x_array,'y':dH3_array,'label':'v=5','c':'green'},],xlabel='valve position',ylabel='Hydraulic resistance, m', title='Hydraulic resistance of control valve', dpi=150,figure_size=(5,5))
 plt.show()
 
 
